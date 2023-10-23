@@ -13,6 +13,7 @@ import (
 	"github.com/grafana/grafana/pkg/services/ngalert/models"
 	"github.com/grafana/grafana/pkg/services/ngalert/store"
 	"github.com/grafana/grafana/pkg/services/quota"
+	"github.com/grafana/grafana/pkg/services/user"
 	"github.com/grafana/grafana/pkg/util"
 )
 
@@ -166,21 +167,39 @@ func (service *AlertRuleService) GetAlertRuleWithFolderTitle(ctx context.Context
 // CreateAlertRule creates a new alert rule. This function will ignore any
 // interval that is set in the rule struct and use the already existing group
 // interval or the default one.
-func (service *AlertRuleService) CreateAlertRule(ctx context.Context, rule models.AlertRule, provenance models.Provenance, userID int64) (models.AlertRule, error) {
+func (service *AlertRuleService) CreateAlertRule(ctx context.Context, user *user.SignedInUser, rule models.AlertRule, provenance models.Provenance) (models.AlertRule, error) {
 	if rule.UID == "" {
 		rule.UID = util.GenerateShortUID()
 	} else if err := util.ValidateUID(rule.UID); err != nil {
 		return models.AlertRule{}, errors.Join(models.ErrAlertRuleFailedValidation, fmt.Errorf("cannot create rule with UID '%s': %w", rule.UID, err))
 	}
-	interval, err := service.ruleStore.GetRuleGroupInterval(ctx, rule.OrgID, rule.NamespaceUID, rule.RuleGroup)
-	// if the alert group does not exists we just use the default interval
-	if err != nil && errors.Is(err, store.ErrAlertRuleGroupNotFound) {
-		interval = service.defaultIntervalSeconds
-	} else if err != nil {
-		return models.AlertRule{}, err
+	var interval = service.defaultIntervalSeconds
+	if !service.authz.CanWriteAllRules(ctx, user) {
+		delta, err := store.CalculateRuleCreate(ctx, service.ruleStore, &rule)
+		if err != nil {
+			return models.AlertRule{}, fmt.Errorf("failed to calculate delta: %w", err)
+		}
+		if err := service.authz.AuthorizeRuleChanges(ctx, user, delta); err != nil {
+			return models.AlertRule{}, err
+		}
+		existingGroup := delta.AffectedGroups[rule.GetGroupKey()]
+		if len(existingGroup) > 0 {
+			interval = existingGroup[0].IntervalSeconds
+		}
+	} else {
+		groupInterval, err := service.ruleStore.GetRuleGroupInterval(ctx, rule.OrgID, rule.NamespaceUID, rule.RuleGroup)
+		// if the alert group does not exists we just use the default interval
+		if err != nil {
+			if !errors.Is(err, store.ErrAlertRuleGroupNotFound) {
+				return models.AlertRule{}, err
+			}
+		} else {
+			interval = groupInterval
+		}
 	}
+
 	rule.IntervalSeconds = interval
-	err = rule.SetDashboardAndPanelFromAnnotations()
+	err := rule.SetDashboardAndPanelFromAnnotations()
 	if err != nil {
 		return models.AlertRule{}, err
 	}
@@ -204,7 +223,7 @@ func (service *AlertRuleService) CreateAlertRule(ctx context.Context, rule model
 			return errors.New("couldn't find newly created id")
 		}
 
-		if err = service.checkLimitsTransactionCtx(ctx, rule.OrgID, userID); err != nil {
+		if err = service.checkLimitsTransactionCtx(ctx, rule.OrgID, user.UserID); err != nil {
 			return err
 		}
 
@@ -249,7 +268,7 @@ func (service *AlertRuleService) GetRuleGroup(ctx context.Context, user identity
 }
 
 // UpdateRuleGroup will update the interval for all rules in the group.
-func (service *AlertRuleService) UpdateRuleGroup(ctx context.Context, orgID int64, namespaceUID string, ruleGroup string, intervalSeconds int64) error {
+func (service *AlertRuleService) UpdateRuleGroup(ctx context.Context, user identity.Requester, orgID int64, namespaceUID string, ruleGroup string, intervalSeconds int64) error {
 	if err := models.ValidateRuleGroupInterval(intervalSeconds, service.baseIntervalSeconds); err != nil {
 		return err
 	}
@@ -275,11 +294,38 @@ func (service *AlertRuleService) UpdateRuleGroup(ctx context.Context, orgID int6
 				New:      newRule,
 			})
 		}
+
+		if !service.authz.CanWriteAllRules(ctx, user) {
+			groupKey := models.AlertRuleGroupKey{
+				OrgID:        user.GetOrgID(),
+				NamespaceUID: namespaceUID,
+				RuleGroup:    ruleGroup,
+			}
+			ruleDeltas := make([]store.RuleDelta, 0, len(ruleList))
+			for _, upd := range updateRules {
+				updNew := upd.New
+				ruleDeltas = append(ruleDeltas, store.RuleDelta{
+					Existing: upd.Existing,
+					New:      &updNew,
+				})
+			}
+			delta := &store.GroupDelta{
+				GroupKey: groupKey,
+				AffectedGroups: map[models.AlertRuleGroupKey]models.RulesGroup{
+					groupKey: ruleList,
+				},
+				Update: ruleDeltas,
+			}
+			if err := service.authz.AuthorizeRuleChanges(ctx, user, delta); err != nil {
+				return err
+			}
+		}
+
 		return service.ruleStore.UpdateAlertRules(ctx, updateRules)
 	})
 }
 
-func (service *AlertRuleService) ReplaceRuleGroup(ctx context.Context, orgID int64, group models.AlertRuleGroup, userID int64, provenance models.Provenance) error {
+func (service *AlertRuleService) ReplaceRuleGroup(ctx context.Context, user *user.SignedInUser, orgID int64, group models.AlertRuleGroup, provenance models.Provenance) error {
 	if err := models.ValidateRuleGroupInterval(group.Interval, service.baseIntervalSeconds); err != nil {
 		return err
 	}
@@ -309,7 +355,7 @@ func (service *AlertRuleService) ReplaceRuleGroup(ctx context.Context, orgID int
 		NamespaceUID: group.FolderUID,
 		RuleGroup:    group.Title,
 	}
-	rules := make([]*models.AlertRuleWithOptionals, len(group.Rules))
+	rules := make([]*models.AlertRuleWithOptionals, 0, len(group.Rules))
 	group = *syncGroupRuleFields(&group, orgID)
 	for i := range group.Rules {
 		if err := group.Rules[i].SetDashboardAndPanelFromAnnotations(); err != nil {
@@ -325,8 +371,12 @@ func (service *AlertRuleService) ReplaceRuleGroup(ctx context.Context, orgID int
 	// Refresh all calculated fields across all rules.
 	delta = store.UpdateCalculatedRuleFields(delta)
 
-	if len(delta.New) == 0 && len(delta.Update) == 0 && len(delta.Delete) == 0 {
+	if delta.IsEmpty() {
 		return nil
+	}
+
+	if err := service.authz.AuthorizeRuleChanges(ctx, user, delta); err != nil {
+		return err
 	}
 
 	return service.xact.InTransaction(ctx, func(ctx context.Context) error {
@@ -385,7 +435,7 @@ func (service *AlertRuleService) ReplaceRuleGroup(ctx context.Context, orgID int
 			}
 		}
 
-		if err = service.checkLimitsTransactionCtx(ctx, orgID, userID); err != nil {
+		if err = service.checkLimitsTransactionCtx(ctx, orgID, user.UserID); err != nil {
 			return err
 		}
 
@@ -394,8 +444,28 @@ func (service *AlertRuleService) ReplaceRuleGroup(ctx context.Context, orgID int
 }
 
 // UpdateAlertRule updates an alert rule.
-func (service *AlertRuleService) UpdateAlertRule(ctx context.Context, rule models.AlertRule, provenance models.Provenance) (models.AlertRule, error) {
-	storedRule, storedProvenance, err := service.GetAlertRule(ctx, rule.OrgID, rule.UID)
+func (service *AlertRuleService) UpdateAlertRule(ctx context.Context, user identity.Requester, rule models.AlertRule, provenance models.Provenance) (models.AlertRule, error) {
+	var storedRule *models.AlertRule
+	if !service.authz.CanWriteAllRules(ctx, user) {
+		delta, err := store.CalculateRuleUpdate(ctx, service.ruleStore, &models.AlertRuleWithOptionals{AlertRule: rule})
+		if err != nil {
+			return models.AlertRule{}, err
+		}
+		if err = service.authz.AuthorizeRuleChanges(ctx, user, delta); err != nil {
+			return models.AlertRule{}, err
+		}
+	} else {
+		query := &models.GetAlertRuleByUIDQuery{
+			OrgID: rule.OrgID,
+			UID:   rule.UID,
+		}
+		existing, err := service.ruleStore.GetAlertRuleByUID(ctx, query)
+		if err != nil {
+			return models.AlertRule{}, err
+		}
+		storedRule = existing
+	}
+	storedProvenance, err := service.provenanceStore.GetProvenance(ctx, storedRule, storedRule.OrgID)
 	if err != nil {
 		return models.AlertRule{}, err
 	}
@@ -412,7 +482,7 @@ func (service *AlertRuleService) UpdateAlertRule(ctx context.Context, rule model
 	err = service.xact.InTransaction(ctx, func(ctx context.Context) error {
 		err := service.ruleStore.UpdateAlertRules(ctx, []models.UpdateRule{
 			{
-				Existing: &storedRule,
+				Existing: storedRule,
 				New:      rule,
 			},
 		})
@@ -427,7 +497,7 @@ func (service *AlertRuleService) UpdateAlertRule(ctx context.Context, rule model
 	return rule, err
 }
 
-func (service *AlertRuleService) DeleteAlertRule(ctx context.Context, orgID int64, ruleUID string, provenance models.Provenance) error {
+func (service *AlertRuleService) DeleteAlertRule(ctx context.Context, user identity.Requester, orgID int64, ruleUID string, provenance models.Provenance) error {
 	rule := &models.AlertRule{
 		OrgID: orgID,
 		UID:   ruleUID,
@@ -440,6 +510,17 @@ func (service *AlertRuleService) DeleteAlertRule(ctx context.Context, orgID int6
 	if storedProvenance != provenance && storedProvenance != models.ProvenanceNone {
 		return fmt.Errorf("cannot delete with provided provenance '%s', needs '%s'", provenance, storedProvenance)
 	}
+
+	if !service.authz.CanWriteAllRules(ctx, user) {
+		delta, err := store.CalculateRuleDelete(ctx, service.ruleStore, rule.GetKey())
+		if err != nil {
+			return err
+		}
+		if err = service.authz.AuthorizeRuleChanges(ctx, user, delta); err != nil {
+			return err
+		}
+	}
+
 	return service.xact.InTransaction(ctx, func(ctx context.Context) error {
 		return service.deleteRules(ctx, orgID, rule)
 	})
