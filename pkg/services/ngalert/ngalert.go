@@ -25,6 +25,7 @@ import (
 	"github.com/grafana/grafana/pkg/services/featuremgmt"
 	"github.com/grafana/grafana/pkg/services/folder"
 	"github.com/grafana/grafana/pkg/services/guardian"
+	ac "github.com/grafana/grafana/pkg/services/ngalert/accesscontrol"
 	"github.com/grafana/grafana/pkg/services/ngalert/api"
 	"github.com/grafana/grafana/pkg/services/ngalert/eval"
 	"github.com/grafana/grafana/pkg/services/ngalert/image"
@@ -264,13 +265,14 @@ func (ng *AlertNG) init() error {
 	ng.schedule = scheduler
 
 	// Provisioning
+	authz := provisioning.NewRuleAccessControlService(ac.NewRuleService(ng.accesscontrol))
 	policyService := provisioning.NewNotificationPolicyService(ng.store, ng.store, ng.store, ng.Cfg.UnifiedAlerting, ng.Log)
 	contactPointService := provisioning.NewContactPointService(ng.store, ng.SecretsService, ng.store, ng.store, ng.Log, ng.accesscontrol)
 	templateService := provisioning.NewTemplateService(ng.store, ng.store, ng.store, ng.Log)
 	muteTimingService := provisioning.NewMuteTimingService(ng.store, ng.store, ng.store, ng.Log)
 	alertRuleService := provisioning.NewAlertRuleService(ng.store, ng.store, ng.dashboardService, ng.QuotaService, ng.store,
 		int64(ng.Cfg.UnifiedAlerting.DefaultRuleEvaluationInterval.Seconds()),
-		int64(ng.Cfg.UnifiedAlerting.BaseInterval.Seconds()), ng.Log)
+		int64(ng.Cfg.UnifiedAlerting.BaseInterval.Seconds()), ng.Log, authz)
 
 	ng.api = &api.API{
 		Cfg:                  ng.Cfg,
