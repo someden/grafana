@@ -277,7 +277,7 @@ func (ps *ProvisioningServiceImpl) ProvisionAlerting(ctx context.Context) error 
 		ps.SQLStore,
 		int64(ps.Cfg.UnifiedAlerting.DefaultRuleEvaluationInterval.Seconds()),
 		int64(ps.Cfg.UnifiedAlerting.BaseInterval.Seconds()),
-		ps.log)
+		ps.log, prov_alerting.NoopRuleAccessControlService{})
 	contactPointService := provisioning.NewContactPointService(&st, ps.secretService,
 		st, ps.SQLStore, ps.log, ps.ac)
 	notificationPolicyService := provisioning.NewNotificationPolicyService(&st,
