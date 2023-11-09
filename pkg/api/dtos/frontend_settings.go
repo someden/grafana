@@ -62,6 +62,10 @@ type FrontendSettingsReportingDTO struct {
 	Enabled bool `json:"enabled"`
 }
 
+type FrontendSettingsAnalyticsDTO struct {
+	Enabled bool `json:"enabled"`
+}
+
 type FrontendSettingsUnifiedAlertingDTO struct {
 	MinInterval              string `json:"minInterval"`
 	AlertStateHistoryBackend string `json:"alertStateHistoryBackend,omitempty"`
@@ -208,6 +212,7 @@ type FrontendSettingsDTO struct {
 	Caching                 FrontendSettingsCachingDTO         `json:"caching"`
 	RecordedQueries         FrontendSettingsRecordedQueriesDTO `json:"recordedQueries"`
 	Reporting               FrontendSettingsReportingDTO       `json:"reporting"`
+	Analytics               FrontendSettingsAnalyticsDTO       `json:"analytics"`
 	UnifiedAlertingEnabled  bool                               `json:"unifiedAlertingEnabled"`
 	UnifiedAlerting         FrontendSettingsUnifiedAlertingDTO `json:"unifiedAlerting"`
 	Oauth                   map[string]any                     `json:"oauth"`
