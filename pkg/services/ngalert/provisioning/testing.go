@@ -8,7 +8,9 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 
+	"github.com/grafana/grafana/pkg/services/auth/identity"
 	"github.com/grafana/grafana/pkg/services/ngalert/models"
+	"github.com/grafana/grafana/pkg/services/ngalert/store"
 )
 
 const defaultAlertmanagerConfigJSON = `
@@ -184,4 +186,23 @@ func (m *MockQuotaChecker_Expecter) LimitOK() *MockQuotaChecker_Expecter {
 func (m *MockQuotaChecker_Expecter) LimitExceeded() *MockQuotaChecker_Expecter {
 	m.CheckQuotaReached(mock.Anything, mock.Anything, mock.Anything).Return(true, nil)
 	return m
+}
+
+type FakeProvisioningRuleAccessControlService struct {
+}
+
+func (f FakeProvisioningRuleAccessControlService) AuthorizeAccessToRuleGroup(ctx context.Context, user identity.Requester, rules models.RulesGroup) bool {
+	return true
+}
+
+func (f FakeProvisioningRuleAccessControlService) AuthorizeRuleChanges(ctx context.Context, user identity.Requester, change *store.GroupDelta) error {
+	return nil
+}
+
+func (f FakeProvisioningRuleAccessControlService) CanReadAllRules(ctx context.Context, user identity.Requester) bool {
+	return true
+}
+
+func (f FakeProvisioningRuleAccessControlService) CanWriteAllRules(ctx context.Context, user identity.Requester) bool {
+	return true
 }

@@ -587,6 +587,7 @@ func createAlertRuleService(t *testing.T) AlertRuleService {
 		log:                    log.New("testing"),
 		baseIntervalSeconds:    10,
 		defaultIntervalSeconds: 60,
+		authz:                  &FakeProvisioningRuleAccessControlService{},
 	}
 }
 
