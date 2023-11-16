@@ -17,8 +17,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/grafana/grafana/pkg/infra/log"
+	ac "github.com/grafana/grafana/pkg/services/accesscontrol"
 	"github.com/grafana/grafana/pkg/services/accesscontrol/acimpl"
 	contextmodel "github.com/grafana/grafana/pkg/services/contexthandler/model"
+	"github.com/grafana/grafana/pkg/services/dashboards"
 	"github.com/grafana/grafana/pkg/services/datasources"
 	"github.com/grafana/grafana/pkg/services/folder"
 	"github.com/grafana/grafana/pkg/services/ngalert/accesscontrol"
@@ -234,7 +236,8 @@ func TestRouteGetNamespaceRulesConfig(t *testing.T) {
 		err := svc.provenanceStore.SetProvenance(context.Background(), rule, orgID, models.ProvenanceAPI)
 		require.NoError(t, err)
 
-		req := createRequestContext(orgID, nil)
+		perms := createPermissionsForRules(expectedRules, orgID)
+		req := createRequestContextWithPerms(orgID, perms, nil)
 		response := svc.RouteGetNamespaceRulesConfig(req, folder.Title)
 
 		require.Equal(t, http.StatusAccepted, response.Status())
@@ -268,7 +271,8 @@ func TestRouteGetNamespaceRulesConfig(t *testing.T) {
 		expectedRules := models.GenerateAlertRules(rand.Intn(5)+5, models.AlertRuleGen(withGroupKey(groupKey), models.WithUniqueGroupIndex()))
 		ruleStore.PutRule(context.Background(), expectedRules...)
 
-		req := createRequestContext(orgID, nil)
+		perms := createPermissionsForRules(expectedRules, orgID)
+		req := createRequestContextWithPerms(orgID, perms, nil)
 		response := createService(ruleStore).RouteGetNamespaceRulesConfig(req, folder.Title)
 
 		require.Equal(t, http.StatusAccepted, response.Status())
@@ -351,7 +355,8 @@ func TestRouteGetRulesConfig(t *testing.T) {
 		expectedRules := models.GenerateAlertRules(rand.Intn(5)+5, models.AlertRuleGen(withGroupKey(groupKey), models.WithUniqueGroupIndex()))
 		ruleStore.PutRule(context.Background(), expectedRules...)
 
-		req := createRequestContext(orgID, nil)
+		perms := createPermissionsForRules(expectedRules, orgID)
+		req := createRequestContextWithPerms(orgID, perms, nil)
 		response := createService(ruleStore).RouteGetRulesConfig(req)
 
 		require.Equal(t, http.StatusOK, response.Status())
@@ -434,7 +439,9 @@ func TestRouteGetRulesGroupConfig(t *testing.T) {
 		expectedRules := models.GenerateAlertRules(rand.Intn(5)+5, models.AlertRuleGen(withGroupKey(groupKey), models.WithUniqueGroupIndex()))
 		ruleStore.PutRule(context.Background(), expectedRules...)
 
-		req := createRequestContext(orgID, nil)
+		perms := createPermissionsForRules(expectedRules, orgID)
+		req := createRequestContextWithPerms(orgID, perms, nil)
+
 		response := createService(ruleStore).RouteGetRulesGroupConfig(req, folder.Title, groupKey.RuleGroup)
 
 		require.Equal(t, http.StatusAccepted, response.Status())
@@ -637,8 +644,15 @@ func createRequestContextWithPerms(orgID int64, permissions map[int64]map[string
 }
 
 func createPermissionsForRules(rules []*models.AlertRule, orgID int64) map[int64]map[string][]string {
+	ns := map[string]any{}
 	permissions := map[string][]string{}
 	for _, rule := range rules {
+		if _, ok := ns[rule.NamespaceUID]; !ok {
+			scope := dashboards.ScopeFoldersProvider.GetResourceScopeUID(rule.NamespaceUID)
+			permissions[dashboards.ActionFoldersRead] = append(permissions[dashboards.ActionFoldersRead], scope)
+			permissions[ac.ActionAlertingRuleRead] = append(permissions[ac.ActionAlertingRuleRead], scope)
+			ns[rule.NamespaceUID] = struct{}{}
+		}
 		for _, query := range rule.Data {
 			permissions[datasources.ActionQuery] = append(permissions[datasources.ActionQuery], datasources.ScopeProvider.GetResourceScopeUID(query.DatasourceUID))
 		}
