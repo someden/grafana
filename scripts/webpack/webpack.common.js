@@ -1,4 +1,3 @@
-const CopyWebpackPlugin = require('copy-webpack-plugin');
 const path = require('path');
 const webpack = require('webpack');
 
@@ -44,7 +43,13 @@ module.exports = {
     },
     symlinks: false,
   },
-  ignoreWarnings: [/export .* was not found in/],
+  ignoreWarnings: [
+    /export .* was not found in/,
+    {
+      module: /@kusto\/language-service\/bridge\.min\.js$/,
+      message: /^Critical dependency: the request of a dependency is an expression$/,
+    },
+  ],
   stats: {
     children: false,
     source: false,
@@ -56,25 +61,6 @@ module.exports = {
     new CorsWorkerPlugin(),
     new webpack.ProvidePlugin({
       Buffer: ['buffer', 'Buffer'],
-    }),
-    new CopyWebpackPlugin({
-      patterns: [
-        {
-          context: path.join(require.resolve('monaco-editor/package.json'), '../min/vs/'),
-          from: '**/*',
-          to: '../lib/monaco/min/vs/', // inside the public/build folder
-          globOptions: {
-            ignore: [
-              '**/*.map', // debug files
-            ],
-          },
-        },
-        {
-          context: path.join(require.resolve('@kusto/monaco-kusto/package.json'), '../release/min'),
-          from: '**/*',
-          to: '../lib/monaco/min/vs/language/kusto/',
-        },
-      ],
     }),
   ],
   module: {
