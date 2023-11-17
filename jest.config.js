@@ -26,7 +26,6 @@ module.exports = {
     `/node_modules/(?!${esModules})`, // exclude es modules to prevent TS complaining
   ],
   moduleDirectories: ['public'],
-  modulePathIgnorePatterns: ['<rootDir>/.yarn-cache/'],
   roots: ['<rootDir>/public/app', '<rootDir>/public/test', '<rootDir>/packages'],
   testRegex: '(\\.|/)(test)\\.(jsx?|tsx?)$',
   moduleFileExtensions: ['ts', 'tsx', 'js', 'jsx', 'json'],
