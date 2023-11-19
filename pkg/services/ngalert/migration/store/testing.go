@@ -87,8 +87,6 @@ func NewTestMigrationStore(t testing.TB, sqlStore *sqlstore.SQLStore, cfg *setti
 	err = acSvc.RegisterFixedRoles(context.Background())
 	require.NoError(t, err)
 
-	legacyAlertStore := legacyalerting.ProvideAlertStore(sqlStore, cache, cfg, nil, features)
-
 	return &migrationStore{
 		log:                            &logtest.Fake{},
 		cfg:                            cfg,
@@ -101,7 +99,6 @@ func NewTestMigrationStore(t testing.TB, sqlStore *sqlstore.SQLStore, cfg *setti
 		folderPermissions:              folderPermissions,
 		dashboardPermissions:           dashboardPermissions,
 		orgService:                     orgService,
-		legacyAlertStore:               legacyAlertStore,
 		legacyAlertNotificationService: legacyalerting.ProvideService(sqlStore, encryptionservice.SetupTestService(t), nil),
 	}
 }
