@@ -4,6 +4,8 @@ import (
 	"context"
 	"fmt"
 
+	pb "github.com/prometheus/alertmanager/silence/silencepb"
+
 	legacymodels "github.com/grafana/grafana/pkg/services/alerting/models"
 	migmodels "github.com/grafana/grafana/pkg/services/ngalert/migration/models"
 	"github.com/grafana/grafana/pkg/services/ngalert/models"
@@ -96,8 +98,19 @@ func (om *OrgMigration) migrateOrg(ctx context.Context) error {
 		return fmt.Errorf("migrate alerts: %w", err)
 	}
 
-	if err := om.writeSilencesFile(); err != nil {
-		return fmt.Errorf("write silence file for org %d: %w", om.orgID, err)
+	var silences []*pb.MeshSilence
+	if om.rulesWithErrorSilenceLabels > 0 {
+		om.log.Info("Creating silence for rules with ExecutionErrorState = keep_state", "rules", om.rulesWithErrorSilenceLabels)
+		silences = append(silences, errorSilence())
+	}
+	if om.rulesWithNoDataSilenceLabels > 0 {
+		om.log.Info("Creating silence for rules with NoDataState = keep_state", "rules", om.rulesWithNoDataSilenceLabels)
+		silences = append(silences, noDataSilence())
+	}
+	if len(silences) > 0 {
+		if err := om.writeSilencesFile(silences); err != nil {
+			return fmt.Errorf("write silence file: %w", err)
+		}
 	}
 
 	if amConfig != nil {

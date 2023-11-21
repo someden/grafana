@@ -1,7 +1,7 @@
 package migration
 
 import (
-	pb "github.com/prometheus/alertmanager/silence/silencepb"
+	"io"
 
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/services/accesscontrol"
@@ -23,9 +23,13 @@ type OrgMigration struct {
 	encryptionService secrets.Service
 
 	orgID                      int64
-	silences                   []*pb.MeshSilence
 	titleDeduplicatorForFolder func(folderUID string) *migmodels.Deduplicator
-	channelCache        *ChannelCache
+	channelCache               *ChannelCache
+
+	// Silences
+	silenceFile                  func(filename string) (io.WriteCloser, error)
+	rulesWithErrorSilenceLabels  int
+	rulesWithNoDataSilenceLabels int
 
 	// Migrated folder for a dashboard based on permissions. Parent Folder ID -> unique dashboard permission -> custom folder.
 	permissionsMap        map[int64]map[permissionHash]*folder.Folder
@@ -46,15 +50,16 @@ func (ms *migrationService) newOrgMigration(orgID int64) *OrgMigration {
 		migrationStore:    ms.migrationStore,
 		encryptionService: ms.encryptionService,
 
-		orgID:    orgID,
-		silences: make([]*pb.MeshSilence, 0),
+		orgID: orgID,
 		titleDeduplicatorForFolder: func(folderUID string) *migmodels.Deduplicator {
 			if _, ok := titlededuplicatorPerFolder[folderUID]; !ok {
 				titlededuplicatorPerFolder[folderUID] = migmodels.NewDeduplicator(ms.migrationStore.CaseInsensitive(), store.AlertDefinitionMaxTitleLength)
 			}
 			return titlededuplicatorPerFolder[folderUID]
 		},
-		channelCache:        &ChannelCache{cache: make(map[any]*legacymodels.AlertNotification)},
+		channelCache: &ChannelCache{cache: make(map[any]*legacymodels.AlertNotification)},
+
+		silenceFile: openReplace,
 
 		permissionsMap:        make(map[int64]map[permissionHash]*folder.Folder),
 		folderCache:           make(map[int64]*folder.Folder),

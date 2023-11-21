@@ -2,7 +2,6 @@ package migration
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 	"io"
 	"math/rand"
@@ -11,97 +10,82 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/google/uuid"
 	"github.com/matttproud/golang_protobuf_extensions/pbutil"
 	pb "github.com/prometheus/alertmanager/silence/silencepb"
 	"github.com/prometheus/common/model"
 
 	"github.com/grafana/grafana/pkg/services/ngalert/models"
+	ngstate "github.com/grafana/grafana/pkg/services/ngalert/state"
+	"github.com/grafana/grafana/pkg/util"
 )
 
-const (
-	// Should be the same as 'NoDataAlertName' in pkg/services/schedule/compat.go.
-	NoDataAlertName = "DatasourceNoData"
+// TimeNow makes it possible to test usage of time
+var TimeNow = time.Now
 
-	ErrorAlertName = "DatasourceError"
-)
-
-// addErrorSilence adds a silence for the given rule to the orgMigration if the ExecutionErrorState was set to keep_state.
-func (om *OrgMigration) addErrorSilence(rule *models.AlertRule) error {
-	uid, err := uuid.NewRandom()
-	if err != nil {
-		return errors.New("create uuid for silence")
-	}
-
-	s := &pb.MeshSilence{
+// errorSilence creates a silence that matches DatasourceError alerts for rules which have a label attached when ExecutionErrorState was set to keep_state.
+func errorSilence() *pb.MeshSilence {
+	n, v := getLabelForErrorSilenceMatching()
+	return &pb.MeshSilence{
 		Silence: &pb.Silence{
-			Id: uid.String(),
+			Id: util.GenerateShortUID(),
 			Matchers: []*pb.Matcher{
 				{
 					Type:    pb.Matcher_EQUAL,
 					Name:    model.AlertNameLabel,
-					Pattern: ErrorAlertName,
+					Pattern: ngstate.ErrorAlertName,
 				},
 				{
 					Type:    pb.Matcher_EQUAL,
-					Name:    "rule_uid",
-					Pattern: rule.UID,
+					Name:    n,
+					Pattern: v,
 				},
 			},
-			StartsAt:  time.Now(),
-			EndsAt:    time.Now().AddDate(1, 0, 0), // 1 year
+			StartsAt:  TimeNow(),
+			EndsAt:    TimeNow().AddDate(1, 0, 0), // 1 year
 			CreatedBy: "Grafana Migration",
-			Comment:   fmt.Sprintf("Created during migration to unified alerting to silence Error state for alert rule ID '%s' and Title '%s' because the option 'Keep Last State' was selected for Error state", rule.UID, rule.Title),
+			Comment:   "Created during migration to unified alerting to silence Error state when the option 'Keep Last State' was selected for Error state",
 		},
-		ExpiresAt: time.Now().AddDate(1, 0, 0), // 1 year
+		ExpiresAt: TimeNow().AddDate(1, 0, 0), // 1 year
 	}
-	om.silences = append(om.silences, s)
-	return nil
 }
 
-// addNoDataSilence adds a silence for the given rule to the orgMigration if the NoDataState was set to keep_state.
-func (om *OrgMigration) addNoDataSilence(rule *models.AlertRule) error {
-	uid, err := uuid.NewRandom()
-	if err != nil {
-		return errors.New("create uuid for silence")
-	}
-
-	s := &pb.MeshSilence{
+// noDataSilence creates a silence that matches DatasourceNoData alerts for rules which have a label attached when NoDataState was set to keep_state.
+func noDataSilence() *pb.MeshSilence {
+	n, v := getLabelForNoDataSilenceMatching()
+	return &pb.MeshSilence{
 		Silence: &pb.Silence{
-			Id: uid.String(),
+			Id: util.GenerateShortUID(),
 			Matchers: []*pb.Matcher{
 				{
 					Type:    pb.Matcher_EQUAL,
 					Name:    model.AlertNameLabel,
-					Pattern: NoDataAlertName,
+					Pattern: ngstate.NoDataAlertName,
 				},
 				{
 					Type:    pb.Matcher_EQUAL,
-					Name:    "rule_uid",
-					Pattern: rule.UID,
+					Name:    n,
+					Pattern: v,
 				},
 			},
-			StartsAt:  time.Now(),
-			EndsAt:    time.Now().AddDate(1, 0, 0), // 1 year.
+			StartsAt:  TimeNow(),
+			EndsAt:    TimeNow().AddDate(1, 0, 0), // 1 year.
 			CreatedBy: "Grafana Migration",
-			Comment:   fmt.Sprintf("Created during migration to unified alerting to silence NoData state for alert rule ID '%s' and Title '%s' because the option 'Keep Last State' was selected for NoData state", rule.UID, rule.Title),
+			Comment:   "Created during migration to unified alerting to silence NoData state when the option 'Keep Last State' was selected for NoData state",
 		},
-		ExpiresAt: time.Now().AddDate(1, 0, 0), // 1 year.
+		ExpiresAt: TimeNow().AddDate(1, 0, 0), // 1 year.
 	}
-	om.silences = append(om.silences, s)
-	return nil
 }
 
-func (om *OrgMigration) writeSilencesFile() error {
+func (om *OrgMigration) writeSilencesFile(silences []*pb.MeshSilence) error {
 	var buf bytes.Buffer
-	om.log.Debug("Writing silences file", "silences", len(om.silences))
-	for _, e := range om.silences {
+	om.log.Debug("Writing silences file", "silences", len(silences))
+	for _, e := range silences {
 		if _, err := pbutil.WriteDelimited(&buf, e); err != nil {
 			return err
 		}
 	}
 
-	f, err := openReplace(silencesFileNameForOrg(om.cfg.DataPath, om.orgID))
+	f, err := om.silenceFile(silencesFileNameForOrg(om.cfg.DataPath, om.orgID))
 	if err != nil {
 		return err
 	}
@@ -134,7 +118,7 @@ func (f *replaceFile) Close() error {
 }
 
 // openReplace opens a new temporary file that is moved to filename on closing.
-func openReplace(filename string) (*replaceFile, error) {
+func openReplace(filename string) (io.WriteCloser, error) {
 	tmpFilename := fmt.Sprintf("%s.%x", filename, uint64(rand.Int63()))
 
 	if err := os.MkdirAll(filepath.Dir(tmpFilename), os.ModePerm); err != nil {
@@ -154,6 +138,12 @@ func openReplace(filename string) (*replaceFile, error) {
 	return rf, nil
 }
 
-func getLabelForSilenceMatching(ruleUID string) (string, string) {
-	return "rule_uid", ruleUID
+// getLabelForErrorSilenceMatching returns the key, value for a label that will match a silence rule intended for legacy alerts with error state = keep_state.
+func getLabelForErrorSilenceMatching() (string, string) {
+	return models.MigratedSilenceLabelPrefix + "error_keep_state__", "true"
+}
+
+// getLabelForNoDataSilenceMatching returns the key, value for a label that will match a silence rule intended for legacy alerts with nodata state = keep_state.
+func getLabelForNoDataSilenceMatching() (string, string) {
+	return models.MigratedSilenceLabelPrefix + "nodata_keep_state__", "true"
 }
