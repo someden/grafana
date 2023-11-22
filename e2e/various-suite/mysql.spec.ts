@@ -36,7 +36,13 @@ describe('MySQL datasource', () => {
 
   it('code editor autocomplete should handle table name escaping/quoting', () => {
     cy.get("label[for^='option-code']").should('be.visible').click();
-    cy.get('textarea').type('S{downArrow}{enter}');
+
+    // Wait for lazy loading Monaco
+    e2e.components.CodeEditor.container().children('[data-testid="Spinner"]').should('not.exist');
+    cy.window().its('monaco').should('exist');
+    e2e.components.CodeEditor.container().get('textarea').should('exist');
+
+    e2e.components.CodeEditor.container().get('textarea').type('S{downArrow}{enter}');
     cy.wait('@tables');
     cy.get('.suggest-widget').contains(tableNameWithSpecialCharacter).should('be.visible');
     cy.get('textarea').type('{enter}');
@@ -87,8 +93,12 @@ describe('MySQL datasource', () => {
       cy.get("[aria-label='Macros value selector']").should('be.visible').click();
       selectOption('timeFilter');
 
-      // Validate that the timeFilter macro was added
+      // Wait for lazy loading Monaco
+      e2e.components.CodeEditor.container().children('[data-testid="Spinner"]').should('not.exist');
+      cy.window().its('monaco').should('exist');
+      e2e.components.CodeEditor.container().get('textarea').should('exist');
 
+      // Validate that the timeFilter macro was added
       e2e.components.CodeEditor.container()
         .get('textarea')
         .should(
