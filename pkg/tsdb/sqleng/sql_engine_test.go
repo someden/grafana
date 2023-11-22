@@ -23,7 +23,7 @@ func TestSQLEngine(t *testing.T) {
 		from := time.Date(2018, 4, 12, 18, 0, 0, 0, time.UTC)
 		to := from.Add(5 * time.Minute)
 		timeRange := backend.TimeRange{From: from, To: to}
-		query := backend.DataQuery{JSON: []byte("{}")}
+		query := backend.DataQuery{JSON: []byte("{}"), MaxDataPoints: 1500, Interval: time.Second * 60}
 
 		t.Run("interpolate $__interval", func(t *testing.T) {
 			sql, err := Interpolate(query, timeRange, "", "select $__interval ")
