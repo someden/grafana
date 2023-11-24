@@ -788,8 +788,7 @@ def start_prometheus_step():
         "depends_on": [],
         "image": images["go"],
         "commands": [
-            "apk add --update make",
-            "make devenv sources=prometheus"
+            "cd devenv && docker-compose up",
         ],
     }
 

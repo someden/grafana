@@ -583,8 +583,7 @@ steps:
   image: alpine:3.18.4
   name: grafana-server
 - commands:
-  - apk add --update make
-  - make devenv sources=prometheus
+  - cd devenv && docker-compose up
   depends_on: []
   image: golang:1.21.3-alpine
   name: start-prometheus
@@ -1851,8 +1850,7 @@ steps:
   image: alpine:3.18.4
   name: grafana-server
 - commands:
-  - apk add --update make
-  - make devenv sources=prometheus
+  - cd devenv && docker-compose up
   depends_on: []
   image: golang:1.21.3-alpine
   name: start-prometheus
@@ -4714,6 +4712,6 @@ kind: secret
 name: gcr_credentials
 ---
 kind: signature
-hmac: f57d588b949a55668a344721f76fa35f344aed542df45e5ae8e460c00d937465
+hmac: 997f0736161ab28b0800df7065584a5c259679cf30b858eff08c8a77a3d28ad4
 
 ...
