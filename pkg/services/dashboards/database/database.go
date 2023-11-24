@@ -1008,7 +1008,7 @@ func (d *dashboardStore) FindDashboards(ctx context.Context, query *dashboards.F
 	}
 
 	// Only use modified search for non-empty search queries, otherwise it's just listing and new query can't help there yet.
-	if query.Title != "" {
+	if query.Title != "" && len(query.FolderUIDs) == 0 && len(query.FolderIds) == 0 { //nolint:staticcheck
 		results, err := d.findDashboards(ctx, query)
 		if err != nil {
 			d.log.Info("new search failed", "error", err)
@@ -1042,13 +1042,21 @@ func (d *dashboardStore) findDashboards(ctx context.Context, query *dashboards.F
 			d.log.Info("Modified search query", "time", time.Since(start), "results", len(hits))
 		}()
 		dialect := d.store.GetDialect()
-		sql := `
-		SELECT DISTINCT entity.org_id, entity.kind, entity.uid, entity.id, entity.title, dashboard_tag.term as term, f1.uid as folder_uid, f1.title as folder_title FROM (
-			SELECT org_id, 'dashboard' as kind, uid, id, folder_uid as parent_uid, title FROM dashboard WHERE title ` +
-			dialect.LikeStr() + ` ? AND is_folder = ` + dialect.BooleanStr(false) + `
+
+		sqlInnerLike := `SELECT org_id, 'dashboard' as kind, uid, id, folder_uid as parent_uid, title FROM dashboard WHERE title ` + dialect.LikeStr() + ` ? AND is_folder = ` + dialect.BooleanStr(false) + `
+			UNION ALL SELECT org_id, 'folder' as kind, uid, 0, parent_uid, title FROM folder WHERE title ` + dialect.LikeStr() + ` ?`
+		if true {
+			sqlInnerLike = `SELECT org_id, 'dashboard' as kind, uid, id, folder_uid as parent_uid, title FROM dashboard WHERE MATCH(title) AGAINST(?) AND is_folder = ` + dialect.BooleanStr(false) + `
+				UNION ALL SELECT org_id, 'folder' as kind, uid, 0, parent_uid, title FROM folder WHERE MATCH(title) AGAINST(?)`
+		}
+		if false {
+			sqlInnerLike = `
+			SELECT org_id, 'dashboard' as kind, uid, id, folder_uid as parent_uid, title FROM dashboard WHERE title ` + dialect.LikeStr() + ` ? AND is_folder = ` + dialect.BooleanStr(false) + `
 			UNION ALL
-			SELECT org_id, 'folder' as kind, uid, 0, parent_uid, title FROM folder WHERE title ` + dialect.LikeStr() + ` ?
-		) AS entity
+			SELECT org_id, 'folder' as kind, uid, id, folder_uid as parent_uid, title FROM dashboard WHERE title ` + dialect.LikeStr() + ` ? AND is_folder = ` + dialect.BooleanStr(true)
+		}
+
+		sqlJoinFolders := `
 		LEFT JOIN folder f1
 		ON (entity.parent_uid = f1.uid AND entity.org_id = f1.org_id)
 		LEFT JOIN folder f2
@@ -1058,6 +1066,11 @@ func (d *dashboardStore) findDashboards(ctx context.Context, query *dashboards.F
 		LEFT JOIN folder f4
 		ON (f3.parent_uid = f4.uid AND f3.org_id = f4.org_id)
 		`
+
+		sql := `
+		SELECT DISTINCT entity.org_id, entity.kind, entity.uid, entity.id, entity.title, dashboard_tag.term as term, f1.uid as folder_uid, f1.title as folder_title FROM (` +
+			sqlInnerLike + `
+		) AS entity ` + sqlJoinFolders
 		params := []any{title, title}
 
 		if !query.SignedInUser.GetIsGrafanaAdmin() {
@@ -1088,6 +1101,27 @@ func (d *dashboardStore) findDashboards(ctx context.Context, query *dashboards.F
 
 			role := "Viewer" // TODO: When do we need "Editor"?
 
+			sqlPermissionFilter := `(
+				p.kind = 'dashboards' AND
+				p.action = 'dashboards:read' AND
+				p.identifier = entity.uid
+			) OR (
+				p.kind = 'folders' AND
+				p.action = 'folders:read' AND
+				p.identifier IN (f4.uid, f3.uid, f2.uid, f1.uid, entity.uid)
+			)`
+			if false {
+				sqlPermissionFilter = `(
+					p.action = 'dashboards:read' AND
+					p.scope LIKE 'dashboards:uid:%' AND
+					substr(p.scope, 16) = entity.uid
+				) OR (
+					p.action = 'folders:read' AND
+					p.scope LIKE 'folders:uid:%' AND
+					substr(p.scope, 13) IN (f4.uid, f3.uid, f2.uid, f1.uid, entity.uid)
+				)`
+			}
+
 			sql = sql + `
 			INNER JOIN permission p ON 
 			p.role_id IN (
@@ -1096,27 +1130,23 @@ func (d *dashboardStore) findDashboards(ctx context.Context, query *dashboards.F
 				SELECT tr.role_id FROM team_role AS tr    WHERE tr.team_id IN (` + teamSQL + `) AND tr.org_id = ?
 				UNION
 				SELECT br.role_id FROM builtin_role AS br WHERE br.role IN (?) AND (br.org_id = ? OR br.org_id = 0)
-			) AND ((
-				p.scope LIKE 'folders:uid:%' AND
-				p.action = 'folders:read' AND (
-					substr(scope, 13) = f4.uid OR substr(scope, 13) = f3.uid OR
-					substr(scope, 13) = f2.uid OR substr(scope, 13) = f1.uid OR
-					substr(scope, 13) = entity.uid
-				)
-			) OR (
-				p.scope LIKE 'dashboards:uid:%' AND
-				p.action = 'dashboards:read' AND (
-					substr(scope, 16) = entity.uid
-				)
-			))
-			`
+			) AND (` + sqlPermissionFilter + `)`
 			params = append(params, userID, orgID)
 			params = append(params, teamIDs...)
 			params = append(params, orgID, role, orgID)
 		}
-		sql = sql + `LEFT JOIN dashboard_tag ON dashboard_tag.dashboard_id = entity.id`
+		sql = sql + `LEFT JOIN dashboard_tag ON dashboard_tag.dashboard_id = entity.id` +
+			` ORDER BY entity.title ASC LIMIT ?`
+		limit := query.Limit
+		if limit < 1 {
+			limit = 1000
+		} else if limit > 5000 {
+			limit = 5000
+		}
+		params = append(params, limit)
 		// TODO: filter by tag
-		// TODO: order, limit, page
+		// TODO: order, page
+		fmt.Println(sql, params)
 		if err := sess.SQL(sql, params...).Find(&hits); err != nil {
 			return err
 		}
