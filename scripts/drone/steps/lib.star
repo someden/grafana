@@ -787,7 +787,10 @@ def start_prometheus_step():
         "name": "start-prometheus",
         "depends_on": [],
         "image": images["go"],
-        "commands": ["make devenv sources=prometheus"],
+        "commands": [
+            "apk add --update make",
+            "make devenv sources=prometheus"
+        ],
     }
 
 def playwright_e2e_tests_step():
