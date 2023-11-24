@@ -5,6 +5,7 @@ load(
     "build_frontend_package_step",
     "build_storybook_step",
     "cloud_plugins_e2e_tests_step",
+    "start_prometheus_step",
     "playwright_e2e_tests_step",
     "compile_build_cmd",
     "download_grabpl_step",
@@ -91,6 +92,7 @@ def build_e2e(trigger, ver_mode):
     build_steps.extend(
         [
             grafana_server_step(),
+            start_prometheus_step(),
             e2e_tests_step("dashboards-suite"),
             e2e_tests_step("smoke-tests-suite"),
             e2e_tests_step("panels-suite"),

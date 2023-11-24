@@ -583,6 +583,11 @@ steps:
   image: alpine:3.18.4
   name: grafana-server
 - commands:
+  - make devenv sources=prometheus
+  depends_on: []
+  image: golang:1.21.3-alpine
+  name: start-prometheus
+- commands:
   - ./bin/build e2e-tests --port 3001 --suite dashboards-suite
   depends_on:
   - grafana-server
@@ -641,14 +646,15 @@ steps:
     repo:
     - grafana/grafana
 - commands:
-  - PORT=3001 yarn e2e:plugin
+  - yarn e2e:plugin
   depends_on:
   - grafana-server
+  - start-prometheus
   environment:
     HOST: grafana-server
     PORT: "3001"
   image: mcr.microsoft.com/playwright:v1.40.0-jammy
-  name: playwright plugin e2e
+  name: playwright-plugin-e2e
 - commands:
   - apt-get update
   - apt-get install -yq zip
@@ -1844,6 +1850,11 @@ steps:
   image: alpine:3.18.4
   name: grafana-server
 - commands:
+  - make devenv sources=prometheus
+  depends_on: []
+  image: golang:1.21.3-alpine
+  name: start-prometheus
+- commands:
   - ./bin/build e2e-tests --port 3001 --suite dashboards-suite
   depends_on:
   - grafana-server
@@ -1902,14 +1913,15 @@ steps:
     repo:
     - grafana/grafana
 - commands:
-  - PORT=3001 yarn e2e:plugin
+  - yarn e2e:plugin
   depends_on:
   - grafana-server
+  - start-prometheus
   environment:
     HOST: grafana-server
     PORT: "3001"
   image: mcr.microsoft.com/playwright:v1.40.0-jammy
-  name: playwright plugin e2e
+  name: playwright-plugin-e2e
 - commands:
   - apt-get update
   - apt-get install -yq zip
@@ -4700,6 +4712,6 @@ kind: secret
 name: gcr_credentials
 ---
 kind: signature
-hmac: d56cc08f950183c82f2c7edbd1acc102de82e39c8e65b448359c699f06c4428a
+hmac: d7dd7115eed1f15227fc9daf10f5153e488e0d2f7eac86e3dc5431054bf265e1
 
 ...

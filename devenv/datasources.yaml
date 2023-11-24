@@ -323,6 +323,6 @@ datasources:
       customMetricsNamespaces: cloud-datasources,LatticeNamespace
       tracingDatasourceUid: P7DC3E4760CFAC4AK
     secureJsonData:
-      accessKey: $AWS_ACCESS_KEY_ID
-      secretKey: $AWS_SECRET_ACCESS_KEY
+      accessKey: $AWS_ACCESS_KEY
+      secretKey: $AWS_SECRET_KEY
     version: 1
