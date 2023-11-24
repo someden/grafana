@@ -782,6 +782,25 @@ def cloud_plugins_e2e_tests_step(suite, cloud, trigger = None):
     step = dict(step, when = when)
     return step
 
+def playwright_e2e_tests_step():
+    """Run Playwright e2e tests for plugin-e2e package
+
+    Returns:
+      Drone step.
+    """
+    return {
+        "environment": {
+            "PORT": "3001",
+            "HOST": "grafana-server",
+        },
+        "name": "playwright plugin e2e",
+        "image": "mcr.microsoft.com/playwright:v1.40.0-jammy",
+        "depends_on": [
+            "grafana-server",
+        ],
+        "commands": ["PORT=3001 yarn e2e:plugin"],
+    }
+
 def build_docs_website_step():
     return {
         "name": "build-docs-website",

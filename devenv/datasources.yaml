@@ -311,3 +311,18 @@ datasources:
           spanEndTimeShift: '-5m'
           customQuery: true
           query: '{filename="/var/log/grafana/grafana.log"} |="$${__span.traceId}"'
+        
+  - name: gdev-cloudwatch
+    type: cloudwatch
+    uid: gdev-cloudwatch
+    access: proxy
+    editable: false
+    jsonData:
+      authType: keys
+      defaultRegion: us-east-2
+      customMetricsNamespaces: cloud-datasources,LatticeNamespace
+      tracingDatasourceUid: P7DC3E4760CFAC4AK
+    secureJsonData:
+      accessKey: $AWS_ACCESS_KEY_ID
+      secretKey: $AWS_SECRET_ACCESS_KEY
+    version: 1
