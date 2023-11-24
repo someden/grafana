@@ -27,6 +27,7 @@ import (
 	"github.com/grafana/grafana/pkg/infra/usagestats"
 	"github.com/grafana/grafana/pkg/login/social/connector"
 	"github.com/grafana/grafana/pkg/login/social/models"
+	"github.com/grafana/grafana/pkg/login/social/registry"
 	"github.com/grafana/grafana/pkg/services/featuremgmt"
 	"github.com/grafana/grafana/pkg/services/org"
 	"github.com/grafana/grafana/pkg/services/ssosettings"
@@ -39,11 +40,12 @@ const (
 )
 
 type SocialService struct {
-	cfg *setting.Cfg
+	cfg               *setting.Cfg
+	log               log.Logger
+	connectorRegistry registry.OAuthConnectorRegistry
 
 	socialMap     map[string]connector.SocialConnector
 	oAuthProvider map[string]*models.OAuthInfo
-	log           log.Logger
 }
 
 func ProvideService(cfg *setting.Cfg,
@@ -52,6 +54,7 @@ func ProvideService(cfg *setting.Cfg,
 	bundleRegistry supportbundles.Service,
 	cache remotecache.CacheStorage,
 	ssoSettings ssosettings.Service,
+	connectorRegistry registry.OAuthConnectorRegistry,
 ) *SocialService {
 	ss := &SocialService{
 		cfg:           cfg,
@@ -63,7 +66,7 @@ func ProvideService(cfg *setting.Cfg,
 	usageStats.RegisterMetricsFunc(ss.getUsageStats)
 
 	for _, name := range allOauthes {
-		if name == "azuread" {
+		if features.IsEnabledGlobally(featuremgmt.FlagSsoSettingsApi) {
 			settings, err := ssoSettings.GetForProvider(context.Background(), name)
 			if err != nil {
 				ss.log.Error("Failed to get settings for provider", "error", err, "provider", name)
@@ -75,8 +78,9 @@ func ProvideService(cfg *setting.Cfg,
 				ss.log.Error("Failed to create OAuth provider", "error", err, "provider", name)
 			}
 
-			ss.socialMap[name] = conn
-			ss.oAuthProvider[name] = ss.socialMap[name].GetOAuthInfo()
+			ss.connectorRegistry.Register(name, conn)
+			// ss.socialMap[name] = conn
+			// ss.oAuthProvider[name] = ss.socialMap[name].GetOAuthInfo()
 		} else {
 			sec := cfg.Raw.Section("auth." + name)
 

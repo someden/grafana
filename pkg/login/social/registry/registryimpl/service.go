@@ -1,36 +1,36 @@
 package registryimpl
 
 import (
-	"github.com/grafana/grafana/pkg/login/registry"
 	"github.com/grafana/grafana/pkg/login/social/connector"
+	"github.com/grafana/grafana/pkg/login/social/registry"
 )
 
 var _ registry.OAuthConnectorRegistry = (*OAuthConnectorRegistryImpl)(nil)
 
 type OAuthConnectorRegistryImpl struct {
-	connectors map[string]*connector.SocialConnector
+	connectors map[string]connector.SocialConnector
 }
 
 func ProvideOAuthConnectorRegistry() *OAuthConnectorRegistryImpl {
 	return &OAuthConnectorRegistryImpl{
-		connectors: make(map[string]*connector.SocialConnector),
+		connectors: make(map[string]connector.SocialConnector),
 	}
 }
 
 // Register registers a new OAuthConnector
-func (s *OAuthConnectorRegistryImpl) Register(provider string, connector *connector.SocialConnector) {
+func (s *OAuthConnectorRegistryImpl) Register(provider string, connector connector.SocialConnector) {
 	s.connectors[provider] = connector
 }
 
 // Get gets a OAuthConnector by name
-func (s *OAuthConnectorRegistryImpl) Get(provider string) (*connector.SocialConnector, bool) {
+func (s *OAuthConnectorRegistryImpl) Get(provider string) (connector.SocialConnector, bool) {
 	connector, ok := s.connectors[provider]
 	return connector, ok
 }
 
 // GetAll gets all registered OAuthConnectors
-func (s *OAuthConnectorRegistryImpl) GetAll() []*connector.SocialConnector {
-	connectors := make([]*connector.SocialConnector, 0, len(s.connectors))
+func (s *OAuthConnectorRegistryImpl) GetAll() []connector.SocialConnector {
+	connectors := make([]connector.SocialConnector, 0, len(s.connectors))
 	for _, connector := range s.connectors {
 		connectors = append(connectors, connector)
 	}
