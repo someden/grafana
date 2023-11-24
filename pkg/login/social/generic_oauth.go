@@ -20,8 +20,6 @@ import (
 const genericOAuthProviderName = "generic_oauth"
 
 var (
-	ExtraGenericOAuthSettingKeys = []string{"name_attribute_path", "login_attribute_path", "id_token_attribute_name", "team_ids", "allowed_organizations"}
-
 	GenericOAuthDefaultSettings = map[string]string{
 		"name":                 "OAuth",
 		"icon":                 "signin",
@@ -33,6 +31,8 @@ var (
 		"use_pkce":             "false",
 		"use_refresh_token":    "false",
 	}
+
+	ExtraGenericOAuthSettingKeys = []string{"name_attribute_path", "login_attribute_path", "id_token_attribute_name", "team_ids", "allowed_organizations"}
 )
 
 type SocialGenericOAuth struct {

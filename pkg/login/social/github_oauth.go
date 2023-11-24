@@ -22,8 +22,6 @@ import (
 const gitHubProviderName = "github"
 
 var (
-	ExtraGithubSettingKeys = []string{"allowed_organizations"}
-
 	GitHubDefaultSettings = map[string]string{
 		"name":          "GitHub",
 		"icon":          "github",
@@ -37,6 +35,8 @@ var (
 		// GitHub OAuth apps does not provide refresh tokens and the access tokens never expires.
 		"use_refresh_token": "false",
 	}
+
+	ExtraGithubSettingKeys = []string{"allowed_organizations"}
 )
 
 type SocialGithub struct {

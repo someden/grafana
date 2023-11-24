@@ -18,8 +18,6 @@ import (
 const grafanaComProviderName = "grafana_com"
 
 var (
-	ExtraGrafanaComSettingKeys = []string{"allowed_organizations"}
-
 	GrafanaComDefaultSettings = map[string]string{
 		"name":               "Grafana.com",
 		"icon":               "grafana",
@@ -30,6 +28,8 @@ var (
 		"skip_org_role_sync": "false",
 		"use_refresh_token":  "false",
 	}
+
+	ExtraGrafanaComSettingKeys = []string{"allowed_organizations"}
 )
 
 type SocialGrafanaCom struct {
