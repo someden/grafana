@@ -788,6 +788,8 @@ def start_prometheus_step():
         "depends_on": [],
         "image": images["go"],
         "commands": [
+            "apt-get update",
+            "sudo apt-get install docker-compose-plugin",
             "cd devenv && docker-compose up",
         ],
     }
