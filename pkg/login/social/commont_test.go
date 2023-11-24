@@ -3,6 +3,7 @@ package social
 import (
 	"testing"
 
+	"github.com/grafana/grafana/pkg/login/social/models"
 	"github.com/stretchr/testify/require"
 	"gopkg.in/ini.v1"
 )
@@ -52,7 +53,7 @@ hosted_domain = test_hosted_domain
 	iniFile, err := ini.Load([]byte(iniContent))
 	require.NoError(t, err)
 
-	expectedOAuthInfo := &OAuthInfo{
+	expectedOAuthInfo := &models.OAuthInfo{
 		Name:                    "OAuth",
 		Icon:                    "signin",
 		Enabled:                 true,

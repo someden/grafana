@@ -10,6 +10,7 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/grafana/grafana/pkg/login/social/models"
 	"github.com/grafana/grafana/pkg/services/featuremgmt"
 	"github.com/grafana/grafana/pkg/setting"
 )
@@ -76,7 +77,7 @@ func NewGoogleProvider(settings map[string]any, cfg *setting.Cfg, features *feat
 	return provider, nil
 }
 
-func (s *SocialGoogle) UserInfo(ctx context.Context, client *http.Client, token *oauth2.Token) (*BasicUserInfo, error) {
+func (s *SocialGoogle) UserInfo(ctx context.Context, client *http.Client, token *oauth2.Token) (*models.BasicUserInfo, error) {
 	data, errToken := s.extractFromToken(ctx, client, token)
 	if errToken != nil {
 		return nil, errToken
@@ -107,7 +108,7 @@ func (s *SocialGoogle) UserInfo(ctx context.Context, client *http.Client, token 
 		return nil, errMissingGroupMembership
 	}
 
-	userInfo := &BasicUserInfo{
+	userInfo := &models.BasicUserInfo{
 		Id:             data.ID,
 		Name:           data.Name,
 		Email:          data.Email,
@@ -135,7 +136,7 @@ func (s *SocialGoogle) UserInfo(ctx context.Context, client *http.Client, token 
 	return userInfo, nil
 }
 
-func (s *SocialGoogle) GetOAuthInfo() *OAuthInfo {
+func (s *SocialGoogle) GetOAuthInfo() *models.OAuthInfo {
 	return s.info
 }
 

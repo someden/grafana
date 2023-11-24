@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"golang.org/x/oauth2"
 
+	"github.com/grafana/grafana/pkg/login/social/models"
 	"github.com/grafana/grafana/pkg/models/roletype"
 	"github.com/grafana/grafana/pkg/services/featuremgmt"
 	"github.com/grafana/grafana/pkg/setting"
@@ -259,7 +260,7 @@ func TestSocialGoogle_UserInfo(t *testing.T) {
 		name       string
 		fields     fields
 		args       args
-		wantData   *BasicUserInfo
+		wantData   *models.BasicUserInfo
 		wantErr    bool
 		wantErrMsg string
 	}{
@@ -272,7 +273,7 @@ func TestSocialGoogle_UserInfo(t *testing.T) {
 			args: args{
 				token: tokenWithID,
 			},
-			wantData: &BasicUserInfo{
+			wantData: &models.BasicUserInfo{
 				Id:    "88888888888888",
 				Login: "test@example.com",
 				Email: "test@example.com",
@@ -309,7 +310,7 @@ func TestSocialGoogle_UserInfo(t *testing.T) {
 					},
 				},
 			},
-			wantData: &BasicUserInfo{
+			wantData: &models.BasicUserInfo{
 				Id:     "88888888888888",
 				Login:  "test@example.com",
 				Email:  "test@example.com",
@@ -341,7 +342,7 @@ func TestSocialGoogle_UserInfo(t *testing.T) {
 					},
 				},
 			},
-			wantData: &BasicUserInfo{
+			wantData: &models.BasicUserInfo{
 				Id:    "99999999999999",
 				Login: "test@example.com",
 				Email: "test@example.com",
@@ -459,7 +460,7 @@ func TestSocialGoogle_UserInfo(t *testing.T) {
 					},
 				},
 			},
-			wantData: &BasicUserInfo{
+			wantData: &models.BasicUserInfo{
 				Id:    "92222222222222222",
 				Name:  "Test User",
 				Email: "test@example.com",
@@ -521,7 +522,7 @@ func TestSocialGoogle_UserInfo(t *testing.T) {
 					},
 				},
 			},
-			wantData: &BasicUserInfo{
+			wantData: &models.BasicUserInfo{
 				Id:     "88888888888888",
 				Login:  "test@example.com",
 				Email:  "test@example.com",
@@ -542,7 +543,7 @@ func TestSocialGoogle_UserInfo(t *testing.T) {
 			args: args{
 				token: tokenWithID,
 			},
-			wantData: &BasicUserInfo{
+			wantData: &models.BasicUserInfo{
 				Id:     "88888888888888",
 				Login:  "test@example.com",
 				Email:  "test@example.com",
@@ -562,7 +563,7 @@ func TestSocialGoogle_UserInfo(t *testing.T) {
 			args: args{
 				token: tokenWithID,
 			},
-			wantData: &BasicUserInfo{
+			wantData: &models.BasicUserInfo{
 				Id:             "88888888888888",
 				Login:          "test@example.com",
 				Email:          "test@example.com",
@@ -582,7 +583,7 @@ func TestSocialGoogle_UserInfo(t *testing.T) {
 			args: args{
 				token: tokenWithID,
 			},
-			wantData: &BasicUserInfo{
+			wantData: &models.BasicUserInfo{
 				Id:             "88888888888888",
 				Login:          "test@example.com",
 				Email:          "test@example.com",
@@ -621,7 +622,7 @@ func TestSocialGoogle_UserInfo(t *testing.T) {
 					},
 				},
 			},
-			wantData: &BasicUserInfo{
+			wantData: &models.BasicUserInfo{
 				Id:     "88888888888888",
 				Login:  "test@example.com",
 				Email:  "test@example.com",

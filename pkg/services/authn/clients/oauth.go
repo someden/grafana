@@ -15,6 +15,8 @@ import (
 
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/login/social"
+	"github.com/grafana/grafana/pkg/login/social/connector"
+	"github.com/grafana/grafana/pkg/login/social/models"
 	"github.com/grafana/grafana/pkg/services/authn"
 	"github.com/grafana/grafana/pkg/services/login"
 	"github.com/grafana/grafana/pkg/services/org"
@@ -56,8 +58,8 @@ func fromSocialErr(err *social.Error) error {
 var _ authn.RedirectClient = new(OAuth)
 
 func ProvideOAuth(
-	name string, cfg *setting.Cfg, oauthCfg *social.OAuthInfo,
-	connector social.SocialConnector, httpClient *http.Client,
+	name string, cfg *setting.Cfg, oauthCfg *models.OAuthInfo,
+	connector connector.SocialConnector, httpClient *http.Client,
 ) *OAuth {
 	return &OAuth{
 		name, fmt.Sprintf("oauth_%s", strings.TrimPrefix(name, "auth.client.")),
@@ -70,8 +72,8 @@ type OAuth struct {
 	moduleName string
 	log        log.Logger
 	cfg        *setting.Cfg
-	oauthCfg   *social.OAuthInfo
-	connector  social.SocialConnector
+	oauthCfg   *models.OAuthInfo
+	connector  connector.SocialConnector
 	httpClient *http.Client
 }
 

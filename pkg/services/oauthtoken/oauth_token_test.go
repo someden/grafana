@@ -13,6 +13,7 @@ import (
 	"golang.org/x/oauth2"
 	"golang.org/x/sync/singleflight"
 
+	"github.com/grafana/grafana/pkg/login/social/connector/connectortest"
 	"github.com/grafana/grafana/pkg/login/socialtest"
 	"github.com/grafana/grafana/pkg/services/login"
 	"github.com/grafana/grafana/pkg/services/login/authinfoimpl"
@@ -220,10 +221,10 @@ func TestService_TryTokenRefresh_DifferentAuthModuleForUser(t *testing.T) {
 	socialConnector.AssertNotCalled(t, "TokenSource")
 }
 
-func setupOAuthTokenService(t *testing.T) (*Service, *FakeAuthInfoStore, *socialtest.MockSocialConnector) {
+func setupOAuthTokenService(t *testing.T) (*Service, *FakeAuthInfoStore, *connectortest.MockSocialConnector) {
 	t.Helper()
 
-	socialConnector := &socialtest.MockSocialConnector{}
+	socialConnector := &connectortest.MockSocialConnector{}
 	socialService := &socialtest.FakeSocialService{
 		ExpectedConnector: socialConnector,
 	}

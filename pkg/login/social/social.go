@@ -25,6 +25,8 @@ import (
 	"github.com/grafana/grafana/pkg/infra/log"
 	"github.com/grafana/grafana/pkg/infra/remotecache"
 	"github.com/grafana/grafana/pkg/infra/usagestats"
+	"github.com/grafana/grafana/pkg/login/social/connector"
+	"github.com/grafana/grafana/pkg/login/social/models"
 	"github.com/grafana/grafana/pkg/services/featuremgmt"
 	"github.com/grafana/grafana/pkg/services/org"
 	"github.com/grafana/grafana/pkg/services/ssosettings"
@@ -39,43 +41,9 @@ const (
 type SocialService struct {
 	cfg *setting.Cfg
 
-	socialMap     map[string]SocialConnector
-	oAuthProvider map[string]*OAuthInfo
+	socialMap     map[string]connector.SocialConnector
+	oAuthProvider map[string]*models.OAuthInfo
 	log           log.Logger
-}
-
-type OAuthInfo struct {
-	ApiUrl                  string            `mapstructure:"api_url"`
-	AuthUrl                 string            `mapstructure:"auth_url"`
-	AuthStyle               string            `mapstructure:"auth_style"`
-	ClientId                string            `mapstructure:"client_id"`
-	ClientSecret            string            `mapstructure:"client_secret"`
-	EmailAttributeName      string            `mapstructure:"email_attribute_name"`
-	EmailAttributePath      string            `mapstructure:"email_attribute_path"`
-	EmptyScopes             bool              `mapstructure:"empty_scopes"`
-	GroupsAttributePath     string            `mapstructure:"groups_attribute_path"`
-	HostedDomain            string            `mapstructure:"hosted_domain"`
-	Icon                    string            `mapstructure:"icon"`
-	Name                    string            `mapstructure:"name"`
-	RoleAttributePath       string            `mapstructure:"role_attribute_path"`
-	TeamIdsAttributePath    string            `mapstructure:"team_ids_attribute_path"`
-	TeamsUrl                string            `mapstructure:"teams_url"`
-	TlsClientCa             string            `mapstructure:"tls_client_ca"`
-	TlsClientCert           string            `mapstructure:"tls_client_cert"`
-	TlsClientKey            string            `mapstructure:"tls_client_key"`
-	TokenUrl                string            `mapstructure:"token_url"`
-	AllowedDomains          []string          `mapstructure:"allowed_domains"`
-	AllowedGroups           []string          `mapstructure:"allowed_groups"`
-	Scopes                  []string          `mapstructure:"scopes"`
-	AllowAssignGrafanaAdmin bool              `mapstructure:"allow_assign_grafana_admin"`
-	AllowSignup             bool              `mapstructure:"allow_sign_up"`
-	AutoLogin               bool              `mapstructure:"auto_login"`
-	Enabled                 bool              `mapstructure:"enabled"`
-	RoleAttributeStrict     bool              `mapstructure:"role_attribute_strict"`
-	TlsSkipVerify           bool              `mapstructure:"tls_skip_verify_insecure"`
-	UsePKCE                 bool              `mapstructure:"use_pkce"`
-	UseRefreshToken         bool              `mapstructure:"use_refresh_token"`
-	Extra                   map[string]string `mapstructure:",remain"`
 }
 
 func ProvideService(cfg *setting.Cfg,
@@ -87,8 +55,8 @@ func ProvideService(cfg *setting.Cfg,
 ) *SocialService {
 	ss := &SocialService{
 		cfg:           cfg,
-		oAuthProvider: make(map[string]*OAuthInfo),
-		socialMap:     make(map[string]SocialConnector),
+		oAuthProvider: make(map[string]*models.OAuthInfo),
+		socialMap:     make(map[string]connector.SocialConnector),
 		log:           log.New("login.social"),
 	}
 
@@ -142,39 +110,9 @@ func ProvideService(cfg *setting.Cfg,
 	return ss
 }
 
-type BasicUserInfo struct {
-	Id             string
-	Name           string
-	Email          string
-	Login          string
-	Role           org.RoleType
-	IsGrafanaAdmin *bool // nil will avoid overriding user's set server admin setting
-	Groups         []string
-}
-
-func (b *BasicUserInfo) String() string {
-	return fmt.Sprintf("Id: %s, Name: %s, Email: %s, Login: %s, Role: %s, Groups: %v",
-		b.Id, b.Name, b.Email, b.Login, b.Role, b.Groups)
-}
-
-//go:generate mockery --name SocialConnector --structname MockSocialConnector --outpkg socialtest --filename social_connector_mock.go --output ../socialtest/
-type SocialConnector interface {
-	UserInfo(ctx context.Context, client *http.Client, token *oauth2.Token) (*BasicUserInfo, error)
-	IsEmailAllowed(email string) bool
-	IsSignupAllowed() bool
-
-	GetOAuthInfo() *OAuthInfo
-
-	AuthCodeURL(state string, opts ...oauth2.AuthCodeOption) string
-	Exchange(ctx context.Context, code string, authOptions ...oauth2.AuthCodeOption) (*oauth2.Token, error)
-	Client(ctx context.Context, t *oauth2.Token) *http.Client
-	TokenSource(ctx context.Context, t *oauth2.Token) oauth2.TokenSource
-	SupportBundleContent(*bytes.Buffer) error
-}
-
 type SocialBase struct {
 	*oauth2.Config
-	info                    *OAuthInfo
+	info                    *models.OAuthInfo
 	log                     log.Logger
 	allowSignup             bool
 	allowAssignGrafanaAdmin bool
@@ -204,21 +142,21 @@ const (
 
 var (
 	SocialBaseUrl = "/login/"
-	SocialMap     = make(map[string]SocialConnector)
+	SocialMap     = make(map[string]connector.SocialConnector)
 	allOauthes    = []string{"github", "gitlab", "google", "generic_oauth", "grafananet", grafanaCom, "azuread", "okta"}
 )
 
 type Service interface {
 	GetOAuthProviders() map[string]bool
 	GetOAuthHttpClient(string) (*http.Client, error)
-	GetConnector(string) (SocialConnector, error)
-	GetOAuthInfoProvider(string) *OAuthInfo
-	GetOAuthInfoProviders() map[string]*OAuthInfo
+	GetConnector(string) (connector.SocialConnector, error)
+	GetOAuthInfoProvider(string) *models.OAuthInfo
+	GetOAuthInfoProviders() map[string]*models.OAuthInfo
 }
 
 func newSocialBase(name string,
 	config *oauth2.Config,
-	info *OAuthInfo,
+	info *models.OAuthInfo,
 	autoAssignOrgRole string,
 	skipOrgRoleSync bool,
 	features featuremgmt.FeatureManager,
@@ -410,7 +348,7 @@ func (ss *SocialService) GetOAuthHttpClient(name string) (*http.Client, error) {
 	return oauthClient, nil
 }
 
-func (ss *SocialService) GetConnector(name string) (SocialConnector, error) {
+func (ss *SocialService) GetConnector(name string) (connector.SocialConnector, error) {
 	// The socialMap keys don't have "oauth_" prefix, but everywhere else in the system does
 	provider := strings.TrimPrefix(name, "oauth_")
 	connector, ok := ss.socialMap[provider]
@@ -420,11 +358,11 @@ func (ss *SocialService) GetConnector(name string) (SocialConnector, error) {
 	return connector, nil
 }
 
-func (ss *SocialService) GetOAuthInfoProvider(name string) *OAuthInfo {
+func (ss *SocialService) GetOAuthInfoProvider(name string) *models.OAuthInfo {
 	return ss.oAuthProvider[name]
 }
 
-func (ss *SocialService) GetOAuthInfoProviders() map[string]*OAuthInfo {
+func (ss *SocialService) GetOAuthInfoProviders() map[string]*models.OAuthInfo {
 	return ss.oAuthProvider
 }
 
@@ -520,7 +458,7 @@ func (s *SocialBase) retrieveRawIDToken(idToken any) ([]byte, error) {
 	return rawJSON, nil
 }
 
-func (ss *SocialService) createOAuthConnector(name string, settings map[string]any, cfg *setting.Cfg, features *featuremgmt.FeatureManager, cache remotecache.CacheStorage) (SocialConnector, error) {
+func (ss *SocialService) createOAuthConnector(name string, settings map[string]any, cfg *setting.Cfg, features *featuremgmt.FeatureManager, cache remotecache.CacheStorage) (connector.SocialConnector, error) {
 	switch name {
 	case azureADProviderName:
 		return NewAzureADProvider(settings, cfg, features, cache)

@@ -6,6 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/grafana/grafana/pkg/login/social/models"
 	"github.com/grafana/grafana/pkg/services/featuremgmt"
 	"github.com/grafana/grafana/pkg/setting"
 	"github.com/stretchr/testify/require"
@@ -36,14 +37,14 @@ func TestSocialGrafanaCom_UserInfo(t *testing.T) {
 		Name          string
 		Cfg           conf
 		userInfoResp  string
-		want          *BasicUserInfo
+		want          *models.BasicUserInfo
 		ExpectedError error
 	}{
 		{
 			Name:         "should return empty role as userInfo when Skip Org Role Sync Enabled",
 			userInfoResp: userResponse,
 			Cfg:          conf{skipOrgRoleSync: true},
-			want: &BasicUserInfo{
+			want: &models.BasicUserInfo{
 				Id:    "1",
 				Name:  "Eric Leijonmarck",
 				Email: "octocat@github.com",
@@ -55,7 +56,7 @@ func TestSocialGrafanaCom_UserInfo(t *testing.T) {
 			Name:         "should return role as userInfo when Skip Org Role Sync Enabled",
 			userInfoResp: userResponse,
 			Cfg:          conf{skipOrgRoleSync: false},
-			want: &BasicUserInfo{
+			want: &models.BasicUserInfo{
 				Id:    "1",
 				Name:  "Eric Leijonmarck",
 				Email: "octocat@github.com",

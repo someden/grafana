@@ -3,12 +3,13 @@ package socialtest
 import (
 	"net/http"
 
-	"github.com/grafana/grafana/pkg/login/social"
+	"github.com/grafana/grafana/pkg/login/social/connector"
+	"github.com/grafana/grafana/pkg/login/social/models"
 )
 
 type FakeSocialService struct {
-	ExpectedAuthInfoProvider *social.OAuthInfo
-	ExpectedConnector        social.SocialConnector
+	ExpectedAuthInfoProvider *models.OAuthInfo
+	ExpectedConnector        connector.SocialConnector
 	ExpectedHttpClient       *http.Client
 }
 
@@ -20,14 +21,14 @@ func (fss *FakeSocialService) GetOAuthHttpClient(string) (*http.Client, error) {
 	return fss.ExpectedHttpClient, nil
 }
 
-func (fss *FakeSocialService) GetConnector(string) (social.SocialConnector, error) {
+func (fss *FakeSocialService) GetConnector(string) (connector.SocialConnector, error) {
 	return fss.ExpectedConnector, nil
 }
 
-func (fss *FakeSocialService) GetOAuthInfoProvider(string) *social.OAuthInfo {
+func (fss *FakeSocialService) GetOAuthInfoProvider(string) *models.OAuthInfo {
 	return fss.ExpectedAuthInfoProvider
 }
 
-func (fss *FakeSocialService) GetOAuthInfoProviders() map[string]*social.OAuthInfo {
+func (fss *FakeSocialService) GetOAuthInfoProviders() map[string]*models.OAuthInfo {
 	panic("not implemented")
 }

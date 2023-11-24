@@ -15,6 +15,8 @@ import (
 	"golang.org/x/oauth2"
 
 	"github.com/grafana/grafana/pkg/infra/remotecache"
+	"github.com/grafana/grafana/pkg/login/social/connector"
+	"github.com/grafana/grafana/pkg/login/social/models"
 	"github.com/grafana/grafana/pkg/models/roletype"
 	"github.com/grafana/grafana/pkg/services/featuremgmt"
 	"github.com/grafana/grafana/pkg/services/org"
@@ -39,7 +41,7 @@ var (
 	ExtraAzureADSettingKeys = []string{"force_use_graph_api", "allowed_organizations"}
 )
 
-var _ SocialConnector = (*SocialAzureAD)(nil)
+var _ connector.SocialConnector = (*SocialAzureAD)(nil)
 
 type SocialAzureAD struct {
 	*SocialBase
@@ -103,7 +105,7 @@ func NewAzureADProvider(settings map[string]any, cfg *setting.Cfg, features *fea
 	return provider, nil
 }
 
-func (s *SocialAzureAD) UserInfo(ctx context.Context, client *http.Client, token *oauth2.Token) (*BasicUserInfo, error) {
+func (s *SocialAzureAD) UserInfo(ctx context.Context, client *http.Client, token *oauth2.Token) (*models.BasicUserInfo, error) {
 	idToken := token.Extra("id_token")
 	if idToken == nil {
 		return nil, ErrIDTokenNotFound
@@ -157,7 +159,7 @@ func (s *SocialAzureAD) UserInfo(ctx context.Context, client *http.Client, token
 		s.log.Debug("AllowAssignGrafanaAdmin and skipOrgRoleSync are both set, Grafana Admin role will not be synced, consider setting one or the other")
 	}
 
-	return &BasicUserInfo{
+	return &models.BasicUserInfo{
 		Id:             claims.ID,
 		Name:           claims.Name,
 		Email:          email,
@@ -168,7 +170,7 @@ func (s *SocialAzureAD) UserInfo(ctx context.Context, client *http.Client, token
 	}, nil
 }
 
-func (s *SocialAzureAD) GetOAuthInfo() *OAuthInfo {
+func (s *SocialAzureAD) GetOAuthInfo() *models.OAuthInfo {
 	return s.info
 }
 

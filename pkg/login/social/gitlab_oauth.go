@@ -11,6 +11,7 @@ import (
 
 	"golang.org/x/oauth2"
 
+	"github.com/grafana/grafana/pkg/login/social/models"
 	"github.com/grafana/grafana/pkg/models/roletype"
 	"github.com/grafana/grafana/pkg/services/featuremgmt"
 	"github.com/grafana/grafana/pkg/setting"
@@ -162,7 +163,7 @@ func (s *SocialGitlab) getGroupsPage(ctx context.Context, client *http.Client, n
 	return fullPaths, next
 }
 
-func (s *SocialGitlab) UserInfo(ctx context.Context, client *http.Client, token *oauth2.Token) (*BasicUserInfo, error) {
+func (s *SocialGitlab) UserInfo(ctx context.Context, client *http.Client, token *oauth2.Token) (*models.BasicUserInfo, error) {
 	data, err := s.extractFromToken(ctx, client, token)
 	if err != nil {
 		return nil, err
@@ -177,7 +178,7 @@ func (s *SocialGitlab) UserInfo(ctx context.Context, client *http.Client, token 
 		}
 	}
 
-	userInfo := &BasicUserInfo{
+	userInfo := &models.BasicUserInfo{
 		Id:             data.ID,
 		Name:           data.Name,
 		Login:          data.Login,
@@ -198,7 +199,7 @@ func (s *SocialGitlab) UserInfo(ctx context.Context, client *http.Client, token 
 	return userInfo, nil
 }
 
-func (s *SocialGitlab) GetOAuthInfo() *OAuthInfo {
+func (s *SocialGitlab) GetOAuthInfo() *models.OAuthInfo {
 	return s.info
 }
 

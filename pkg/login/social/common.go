@@ -11,6 +11,7 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/grafana/grafana/pkg/login/social/models"
 	"github.com/grafana/grafana/pkg/setting"
 	"github.com/grafana/grafana/pkg/util"
 	"github.com/jmespath/go-jmespath"
@@ -140,7 +141,7 @@ func (s *SocialBase) searchJSONForStringArrayAttr(attributePath string, data []b
 	return result, nil
 }
 
-func createOAuthConfig(info *OAuthInfo, cfg *setting.Cfg, defaultName string) *oauth2.Config {
+func createOAuthConfig(info *models.OAuthInfo, cfg *setting.Cfg, defaultName string) *oauth2.Config {
 	var authStyle oauth2.AuthStyle
 	switch strings.ToLower(info.AuthStyle) {
 	case "inparams":
@@ -199,7 +200,7 @@ func convertIniSectionToMap(sec *ini.Section) map[string]any {
 
 // createOAuthInfoFromKeyValues creates an OAuthInfo struct from a map[string]any using mapstructure
 // it puts all extra key values into OAuthInfo's Extra map
-func createOAuthInfoFromKeyValues(settingsKV map[string]any) (*OAuthInfo, error) {
+func createOAuthInfoFromKeyValues(settingsKV map[string]any) (*models.OAuthInfo, error) {
 	emptyStrToSliceDecodeHook := func(from reflect.Type, to reflect.Type, data any) (any, error) {
 		if from.Kind() == reflect.String && to.Kind() == reflect.Slice {
 			strData, ok := data.(string)
@@ -215,7 +216,7 @@ func createOAuthInfoFromKeyValues(settingsKV map[string]any) (*OAuthInfo, error)
 		return data, nil
 	}
 
-	var oauthInfo OAuthInfo
+	var oauthInfo models.OAuthInfo
 	decoder, err := mapstructure.NewDecoder(&mapstructure.DecoderConfig{
 		DecodeHook:       emptyStrToSliceDecodeHook,
 		Result:           &oauthInfo,
