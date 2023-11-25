@@ -793,6 +793,7 @@ def start_prometheus_step():
             "apk add --no-cache --virtual .docker-compose-deps python3-dev libffi-dev openssl-dev gcc libc-dev make",
             "apk add --update --no-cache python3 && ln -sf python3 /usr/bin/python",
             "apk add pip3",
+            "apk add py-pip",
             "pip3 install docker-compose",
             "apk del .docker-compose-deps",
             "cd devenv",
