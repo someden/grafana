@@ -786,11 +786,19 @@ def start_prometheus_step():
     return {
         "name": "start-prometheus",
         "depends_on": [],
-        "image": images["go"],
+        "image": images["alpine"],
         "commands": [
-            "apt-get update",
-            "sudo apt-get install docker-compose-plugin",
-            "cd devenv && docker-compose up",
+            "apk update",
+            "apk add --no-cache docker-cli python3",
+            "apk add --no-cache --virtual .docker-compose-deps python3-dev libffi-dev openssl-dev gcc libc-dev make",
+            "pip3 install docker-compose",
+            "apk del .docker-compose-deps",
+            "apk add --update --no-cache python3 && ln -sf python3 /usr/bin/python",
+            "python3 -m ensurepip",
+            "pip3 install --no-cache --upgrade pip setuptools",
+            "apk add pip3",
+            "cd devenv",
+            "docker-compose up",
         ],
     }
 
