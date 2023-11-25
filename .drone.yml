@@ -587,12 +587,12 @@ steps:
   - apk add --no-cache docker-cli python3
   - apk add --no-cache --virtual .docker-compose-deps python3-dev libffi-dev openssl-dev
     gcc libc-dev make
-  - pip3 install docker-compose
-  - apk del .docker-compose-deps
   - apk add --update --no-cache python3 && ln -sf python3 /usr/bin/python
   - python3 -m ensurepip
   - pip3 install --no-cache --upgrade pip setuptools
   - apk add pip3
+  - pip3 install docker-compose
+  - apk del .docker-compose-deps
   - cd devenv
   - docker-compose up
   depends_on: []
@@ -1865,12 +1865,12 @@ steps:
   - apk add --no-cache docker-cli python3
   - apk add --no-cache --virtual .docker-compose-deps python3-dev libffi-dev openssl-dev
     gcc libc-dev make
-  - pip3 install docker-compose
-  - apk del .docker-compose-deps
   - apk add --update --no-cache python3 && ln -sf python3 /usr/bin/python
   - python3 -m ensurepip
   - pip3 install --no-cache --upgrade pip setuptools
   - apk add pip3
+  - pip3 install docker-compose
+  - apk del .docker-compose-deps
   - cd devenv
   - docker-compose up
   depends_on: []
@@ -4734,6 +4734,6 @@ kind: secret
 name: gcr_credentials
 ---
 kind: signature
-hmac: e9296242adf33ad4e8aff8cafa5bfab68a27fd3d8ba305b62141a5fa4078d49d
+hmac: 87e9008272ac5ccdba4637de8849c0dbcff7a62db98919bbf48ee724f3315b78
 
 ...
