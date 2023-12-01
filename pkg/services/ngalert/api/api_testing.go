@@ -9,9 +9,10 @@ import (
 	"time"
 
 	"github.com/benbjohnson/clock"
+	amv2 "github.com/prometheus/alertmanager/api/v2/models"
+
 	"github.com/grafana/alerting/models"
 	"github.com/grafana/grafana-plugin-sdk-go/backend"
-	amv2 "github.com/prometheus/alertmanager/api/v2/models"
 
 	"github.com/grafana/grafana-plugin-sdk-go/data"
 
@@ -199,7 +200,8 @@ func addOptimizedQueryWarnings(evalResults *backend.QueryDataResponse, optimizat
 			if len(res.Frames) > 0 {
 				res.Frames[0].AppendNotices(data.Notice{
 					Severity: data.NoticeSeverityWarning,
-					Text:     "Query optimized from Range to Instant type", // Currently this is the only optimization we do.
+					Text: "Query optimized from Range to Instant type; all uses exclusively require the last datapoint. " +
+						"Consider modifying your query to Instant type to ensure accuracy.", // Currently this is the only optimization we do.
 				})
 			}
 		}
