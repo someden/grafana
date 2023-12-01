@@ -1088,6 +1088,14 @@ var (
 			FrontendOnly: true,
 			Owner:        identityAccessTeam,
 		},
+		{
+			Name:           "alertingQueryOptimization",
+			Description:    "Optimizes eligible queries in order to reduce load on datasources",
+			Stage:          FeatureStageGeneralAvailability,
+			Expression:     "true",
+			Owner:          grafanaAlertingSquad,
+			AllowSelfServe: falsePtr,
+		},
 	}
 )
 

@@ -598,4 +598,8 @@ const (
 	// FlagDisplayAnonymousStats
 	// Enables anonymous stats to be shown in the UI for Grafana
 	FlagDisplayAnonymousStats = "displayAnonymousStats"
+
+	// FlagAlertingQueryOptimization
+	// Optimizes eligible queries in order to reduce load on datasources
+	FlagAlertingQueryOptimization = "alertingQueryOptimization"
 )

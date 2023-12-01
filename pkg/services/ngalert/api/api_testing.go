@@ -69,8 +69,10 @@ func (srv TestingApiSrv) RouteTestGrafanaRuleConfig(c *contextmodel.ReqContext, 
 		return errorToResponse(fmt.Errorf("%w to query one or many data sources used by the rule", accesscontrol.ErrAuthorization))
 	}
 
-	if _, err := store.OptimizeAlertQueries(rule.Data); err != nil {
-		return ErrResp(http.StatusInternalServerError, err, "Failed to optimize query")
+	if srv.featureManager.IsEnabled(c.Req.Context(), featuremgmt.FlagAlertingQueryOptimization) {
+		if _, err := store.OptimizeAlertQueries(rule.Data); err != nil {
+			return ErrResp(http.StatusInternalServerError, err, "Failed to optimize query")
+		}
 	}
 
 	evaluator, err := srv.evaluator.Create(eval.NewContext(c.Req.Context(), c.SignedInUser), rule.GetEvalCondition())
@@ -165,9 +167,11 @@ func (srv TestingApiSrv) RouteEvalQueries(c *contextmodel.ReqContext, cmd apimod
 		cond.Condition = cmd.Data[0].RefID
 	}
 
-	_, err := store.OptimizeAlertQueries(cond.Data)
-	if err != nil {
-		return ErrResp(http.StatusInternalServerError, err, "Failed to optimize query")
+	if srv.featureManager.IsEnabled(c.Req.Context(), featuremgmt.FlagAlertingQueryOptimization) {
+		_, err := store.OptimizeAlertQueries(cond.Data)
+		if err != nil {
+			return ErrResp(http.StatusInternalServerError, err, "Failed to optimize query")
+		}
 	}
 
 	evaluator, err := srv.evaluator.Create(eval.NewContext(c.Req.Context(), c.SignedInUser), cond)
