@@ -145,10 +145,6 @@ var _ accesscontrol.AccessControl = &recordingAccessControlFake{}
 type fakeRuleAccessControlService struct {
 }
 
-func (f fakeRuleAccessControlService) AuthorizeDatasourceAccessForRule(ctx context.Context, user identity.Requester, rule *models.AlertRule) error {
-	return nil
-}
-
 func (f fakeRuleAccessControlService) HasAccessToRuleGroup(ctx context.Context, user identity.Requester, rules models.RulesGroup) (bool, error) {
 	return true, nil
 }
