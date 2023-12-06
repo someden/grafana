@@ -13,14 +13,14 @@ import (
 	"time"
 
 	"github.com/go-openapi/strfmt"
-	apimodels "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
-	ngmodels "github.com/grafana/grafana/pkg/services/ngalert/models"
-	"github.com/grafana/grafana/pkg/services/ngalert/notifier"
-	"github.com/grafana/grafana/pkg/services/ngalert/tests/fakes"
-	"github.com/grafana/grafana/pkg/util"
 	amv2 "github.com/prometheus/alertmanager/api/v2/models"
 	"github.com/prometheus/alertmanager/cluster/clusterpb"
 	"github.com/stretchr/testify/require"
+
+	apimodels "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
+	"github.com/grafana/grafana/pkg/services/ngalert/notifier"
+	"github.com/grafana/grafana/pkg/services/ngalert/tests/fakes"
+	"github.com/grafana/grafana/pkg/util"
 )
 
 // Valid Grafana Alertmanager configuration.
@@ -107,7 +107,7 @@ func TestApplyConfig(t *testing.T) {
 	am, err := NewAlertmanager(cfg, 1, fstore)
 	require.NoError(t, err)
 
-	config := &ngmodels.AlertConfiguration{}
+	config := &apimodels.PostableUserConfig{}
 	require.Error(t, am.ApplyConfig(ctx, config))
 	require.False(t, am.Ready())
 
@@ -143,15 +143,8 @@ func TestIntegrationRemoteAlertmanagerApplyConfigOnlyUploadsOnce(t *testing.T) {
 
 	fakeConfigHash := fmt.Sprintf("%x", md5.Sum([]byte(testGrafanaConfig)))
 	fakeConfigCreatedAt := time.Date(2020, 6, 5, 12, 6, 0, 0, time.UTC).Unix()
-	fakeConfig := &ngmodels.AlertConfiguration{
-		ID:                        100,
-		AlertmanagerConfiguration: testGrafanaConfig,
-		ConfigurationHash:         fakeConfigHash,
-		ConfigurationVersion:      "v2",
-		CreatedAt:                 fakeConfigCreatedAt,
-		Default:                   true,
-		OrgID:                     1,
-	}
+	fakeConfig, err := notifier.Load([]byte(testGrafanaConfig))
+	require.NoError(t, err)
 
 	silences := []byte("test-silences")
 	nflog := []byte("test-notifications")
@@ -212,7 +205,7 @@ func TestIntegrationRemoteAlertmanagerApplyConfigOnlyUploadsOnce(t *testing.T) {
 	{
 		require.NoError(t, store.Set(ctx, 1, "alertmanager", "silences", base64.StdEncoding.EncodeToString([]byte("abc123"))))
 		require.NoError(t, store.Set(ctx, 1, "alertmanager", "notifications", base64.StdEncoding.EncodeToString([]byte("abc123"))))
-		fakeConfig.ID = 30000000000000000
+		fakeConfig.TemplateFiles["test"] = "test"
 		require.NoError(t, am.ApplyConfig(ctx, fakeConfig))
 
 		// The remote Alertmanager continues to be ready.

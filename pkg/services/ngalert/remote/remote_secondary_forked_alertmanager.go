@@ -5,7 +5,6 @@ import (
 
 	"github.com/grafana/grafana/pkg/infra/log"
 	apimodels "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
-	"github.com/grafana/grafana/pkg/services/ngalert/models"
 	"github.com/grafana/grafana/pkg/services/ngalert/notifier"
 )
 
@@ -15,6 +14,9 @@ type RemoteSecondaryForkedAlertmanager struct {
 	internal notifier.Alertmanager
 	remote   notifier.Alertmanager
 }
+
+// RemoteSecondaryForkedAlertmanager implements the notifier.Alertmanager interface.
+var _ notifier.Alertmanager = (*RemoteSecondaryForkedAlertmanager)(nil)
 
 func NewRemoteSecondaryForkedAlertmanager(l log.Logger, internal, remote notifier.Alertmanager) *RemoteSecondaryForkedAlertmanager {
 	return &RemoteSecondaryForkedAlertmanager{
@@ -26,21 +28,11 @@ func NewRemoteSecondaryForkedAlertmanager(l log.Logger, internal, remote notifie
 
 // ApplyConfig will only log errors for the remote Alertmanager and ensure we delegate the call to the internal Alertmanager.
 // We don't care about errors in the remote Alertmanager in remote secondary mode.
-func (fam *RemoteSecondaryForkedAlertmanager) ApplyConfig(ctx context.Context, config *models.AlertConfiguration) error {
+func (fam *RemoteSecondaryForkedAlertmanager) ApplyConfig(ctx context.Context, config *apimodels.PostableUserConfig) error {
 	if err := fam.remote.ApplyConfig(ctx, config); err != nil {
 		fam.log.Error("Error applying config to the remote Alertmanager", "err", err)
 	}
 	return fam.internal.ApplyConfig(ctx, config)
-}
-
-// SaveAndApplyConfig is only called on the internal Alertmanager when running in remote secondary mode.
-func (fam *RemoteSecondaryForkedAlertmanager) SaveAndApplyConfig(ctx context.Context, config *apimodels.PostableUserConfig) error {
-	return fam.internal.SaveAndApplyConfig(ctx, config)
-}
-
-// SaveAndApplyDefaultConfig is only called on the internal Alertmanager when running in remote secondary mode.
-func (fam *RemoteSecondaryForkedAlertmanager) SaveAndApplyDefaultConfig(ctx context.Context) error {
-	return fam.internal.SaveAndApplyDefaultConfig(ctx)
 }
 
 func (fam *RemoteSecondaryForkedAlertmanager) GetStatus() apimodels.GettableStatus {

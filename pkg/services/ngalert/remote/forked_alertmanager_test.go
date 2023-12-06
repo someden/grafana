@@ -5,13 +5,13 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/grafana/grafana/pkg/infra/log"
-	apimodels "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
-	"github.com/grafana/grafana/pkg/services/ngalert/models"
-	"github.com/grafana/grafana/pkg/services/ngalert/notifier"
-	"github.com/grafana/grafana/pkg/services/ngalert/notifier/alertmanager_mock"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
+
+	"github.com/grafana/grafana/pkg/infra/log"
+	apimodels "github.com/grafana/grafana/pkg/services/ngalert/api/tooling/definitions"
+	"github.com/grafana/grafana/pkg/services/ngalert/notifier"
+	"github.com/grafana/grafana/pkg/services/ngalert/notifier/alertmanager_mock"
 )
 
 const (
@@ -28,46 +28,20 @@ func TestForkedAlertmanager_ModeRemoteSecondary(t *testing.T) {
 		internal, remote, forked := genTestAlertmanagers(tt, modeRemoteSecondary)
 		internal.EXPECT().ApplyConfig(ctx, mock.Anything).Return(nil).Twice()
 		remote.EXPECT().ApplyConfig(ctx, mock.Anything).Return(nil).Twice()
-		require.NoError(tt, forked.ApplyConfig(ctx, &models.AlertConfiguration{}))
-		require.NoError(tt, forked.ApplyConfig(ctx, &models.AlertConfiguration{}))
+		require.NoError(tt, forked.ApplyConfig(ctx, &apimodels.PostableUserConfig{}))
+		require.NoError(tt, forked.ApplyConfig(ctx, &apimodels.PostableUserConfig{}))
 
 		// An error in the remote Alertmanager should not be returned.
 		internal, remote, forked = genTestAlertmanagers(tt, modeRemoteSecondary)
 		internal.EXPECT().ApplyConfig(ctx, mock.Anything).Return(nil).Once()
 		remote.EXPECT().ApplyConfig(ctx, mock.Anything).Return(expErr).Once()
-		require.NoError(tt, forked.ApplyConfig(ctx, &models.AlertConfiguration{}))
+		require.NoError(tt, forked.ApplyConfig(ctx, &apimodels.PostableUserConfig{}))
 
 		// An error in the internal Alertmanager should be returned.
 		internal, remote, forked = genTestAlertmanagers(tt, modeRemoteSecondary)
 		internal.EXPECT().ApplyConfig(ctx, mock.Anything).Return(expErr).Once()
 		remote.EXPECT().ApplyConfig(ctx, mock.Anything).Return(nil).Once()
-		require.Error(tt, forked.ApplyConfig(ctx, &models.AlertConfiguration{}), expErr)
-	})
-
-	t.Run("SaveAndApplyConfig", func(tt *testing.T) {
-		// SaveAndApplyConfig should only be called on the remote Alertmanager.
-		// State and configuration are updated on an interval.
-		internal, _, forked := genTestAlertmanagers(tt, modeRemoteSecondary)
-		internal.EXPECT().SaveAndApplyConfig(ctx, mock.Anything).Return(nil).Once()
-		require.NoError(tt, forked.SaveAndApplyConfig(ctx, &apimodels.PostableUserConfig{}))
-
-		// If there's an error, it should be returned.
-		internal, _, forked = genTestAlertmanagers(tt, modeRemoteSecondary)
-		internal.EXPECT().SaveAndApplyConfig(ctx, mock.Anything).Return(expErr).Once()
-		require.ErrorIs(tt, forked.SaveAndApplyConfig(ctx, &apimodels.PostableUserConfig{}), expErr)
-	})
-
-	t.Run("SaveAndApplyDefaultConfig", func(tt *testing.T) {
-		// SaveAndApplyDefaultConfig should only be called on the remote Alertmanager.
-		// State and configuration are updated on an interval.
-		internal, _, forked := genTestAlertmanagers(tt, modeRemoteSecondary)
-		internal.EXPECT().SaveAndApplyDefaultConfig(ctx).Return(nil).Once()
-		require.NoError(tt, forked.SaveAndApplyDefaultConfig(ctx))
-
-		// If there's an error, it should be returned.
-		internal, _, forked = genTestAlertmanagers(tt, modeRemoteSecondary)
-		internal.EXPECT().SaveAndApplyDefaultConfig(ctx).Return(expErr).Once()
-		require.ErrorIs(tt, forked.SaveAndApplyDefaultConfig(ctx), expErr)
+		require.Error(tt, forked.ApplyConfig(ctx, &apimodels.PostableUserConfig{}), expErr)
 	})
 
 	t.Run("GetStatus", func(tt *testing.T) {
